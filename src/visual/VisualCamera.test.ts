@@ -174,28 +174,19 @@ describe('VisualCamera', () => {
     expect(state.zoom).not.toBeCloseTo(1, 4);
   });
 
-  test('reacts faster to a strong sound hit while auto mode is running', () => {
-    const driftCamera = new VisualCamera(randomSequence([0.84, 0.32, 0.71, 0.24, 0.63, 0.41]));
-    const hitCamera = new VisualCamera(randomSequence([0.84, 0.32, 0.71, 0.24, 0.63, 0.41]));
+  test('keeps rotation limits in a frontal range without flipping', () => {
+    const camera = new VisualCamera();
 
-    driftCamera.setMotionMode('auto');
-    hitCamera.setMotionMode('auto');
+    camera.startDrag(100, 100);
+    camera.dragTo(1400, -900);
+    camera.endDrag();
 
-    driftCamera.update(1000, { energy: 0.1, transient: 0.03, brightness: 0.15, lowBand: 0.08, midBand: 0.12, highBand: 0.1 });
-    hitCamera.update(1000, { energy: 0.1, transient: 0.03, brightness: 0.15, lowBand: 0.08, midBand: 0.12, highBand: 0.1 });
+    const state = camera.getState();
 
-    const driftBefore = driftCamera.getState();
-    const hitBefore = hitCamera.getState();
-
-    driftCamera.update(1016, { energy: 0.1, transient: 0.03, brightness: 0.15, lowBand: 0.08, midBand: 0.12, highBand: 0.1 });
-    hitCamera.update(1016, { energy: 0.62, transient: 0.9, brightness: 0.58, lowBand: 0.52, midBand: 0.64, highBand: 0.48 });
-
-    const driftAfter = driftCamera.getState();
-    const hitAfter = hitCamera.getState();
-    const driftStep = Math.abs(driftAfter.yaw - driftBefore.yaw) + Math.abs(driftAfter.pitch - driftBefore.pitch);
-    const hitStep = Math.abs(hitAfter.yaw - hitBefore.yaw) + Math.abs(hitAfter.pitch - hitBefore.pitch);
-
-    expect(hitStep).toBeGreaterThan(driftStep * 1.8);
+    expect(state.yaw).toBeLessThanOrEqual(0.95);
+    expect(state.yaw).toBeGreaterThanOrEqual(-0.95);
+    expect(state.pitch).toBeLessThanOrEqual(0.58);
+    expect(state.pitch).toBeGreaterThanOrEqual(-0.58);
   });
 
   test('keeps zoom inside eased bounds for manual and auto movement', () => {
