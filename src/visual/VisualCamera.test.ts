@@ -1,6 +1,17 @@
 import { describe, expect, test } from 'vitest';
 import { VisualCamera } from './VisualCamera';
 
+function randomSequence(values: number[]): () => number {
+  let index = 0;
+
+  return () => {
+    const value = values[index] ?? values[values.length - 1] ?? 0.5;
+
+    index += 1;
+    return value;
+  };
+}
+
 describe('VisualCamera', () => {
   test('keeps viewport placement fixed while rotating in one shared state', () => {
     const camera = new VisualCamera();
@@ -146,5 +157,69 @@ describe('VisualCamera', () => {
 
     expect(firstYawStep).toBeLessThan(0);
     expect(Math.abs(secondYawStep)).toBeLessThan(Math.abs(firstYawStep));
+  });
+
+  test('drifts softly in auto mode with overlapping motion layers', () => {
+    const camera = new VisualCamera(randomSequence([0.91, 0.18, 0.74, 0.22, 0.67, 0.35, 0.58, 0.14]));
+
+    camera.setMotionMode('auto');
+    camera.update(1000, { energy: 0.08, transient: 0.02, brightness: 0.2, lowBand: 0.08, midBand: 0.1, highBand: 0.12 });
+    camera.update(1500, { energy: 0.08, transient: 0.02, brightness: 0.2, lowBand: 0.08, midBand: 0.1, highBand: 0.12 });
+    camera.update(2100, { energy: 0.08, transient: 0.02, brightness: 0.2, lowBand: 0.08, midBand: 0.1, highBand: 0.12 });
+
+    const state = camera.getState();
+
+    expect(Math.abs(state.yaw)).toBeGreaterThan(0.004);
+    expect(Math.abs(state.pitch)).toBeGreaterThan(0.002);
+    expect(state.zoom).not.toBeCloseTo(1, 4);
+  });
+
+  test('reacts faster to a strong sound hit while auto mode is running', () => {
+    const driftCamera = new VisualCamera(randomSequence([0.84, 0.32, 0.71, 0.24, 0.63, 0.41]));
+    const hitCamera = new VisualCamera(randomSequence([0.84, 0.32, 0.71, 0.24, 0.63, 0.41]));
+
+    driftCamera.setMotionMode('auto');
+    hitCamera.setMotionMode('auto');
+
+    driftCamera.update(1000, { energy: 0.1, transient: 0.03, brightness: 0.15, lowBand: 0.08, midBand: 0.12, highBand: 0.1 });
+    hitCamera.update(1000, { energy: 0.1, transient: 0.03, brightness: 0.15, lowBand: 0.08, midBand: 0.12, highBand: 0.1 });
+
+    const driftBefore = driftCamera.getState();
+    const hitBefore = hitCamera.getState();
+
+    driftCamera.update(1016, { energy: 0.1, transient: 0.03, brightness: 0.15, lowBand: 0.08, midBand: 0.12, highBand: 0.1 });
+    hitCamera.update(1016, { energy: 0.62, transient: 0.9, brightness: 0.58, lowBand: 0.52, midBand: 0.64, highBand: 0.48 });
+
+    const driftAfter = driftCamera.getState();
+    const hitAfter = hitCamera.getState();
+    const driftStep = Math.abs(driftAfter.yaw - driftBefore.yaw) + Math.abs(driftAfter.pitch - driftBefore.pitch);
+    const hitStep = Math.abs(hitAfter.yaw - hitBefore.yaw) + Math.abs(hitAfter.pitch - hitBefore.pitch);
+
+    expect(hitStep).toBeGreaterThan(driftStep * 1.8);
+  });
+
+  test('keeps zoom inside eased bounds for manual and auto movement', () => {
+    const camera = new VisualCamera(randomSequence([0.88, 0.42, 0.77, 0.28, 0.65, 0.33]));
+
+    for (let index = 0; index < 18; index += 1) {
+      camera.adjustZoom(0.14);
+    }
+
+    expect(camera.getState().zoom).toBeLessThanOrEqual(1.18);
+
+    for (let index = 0; index < 36; index += 1) {
+      camera.adjustZoom(-0.14);
+    }
+
+    expect(camera.getState().zoom).toBeGreaterThanOrEqual(0.84);
+
+    camera.setMotionMode('auto');
+
+    for (let index = 0; index < 12; index += 1) {
+      camera.update(1200 + index * 320, { energy: 0.92, transient: 0.94, brightness: 0.7, lowBand: 0.76, midBand: 0.8, highBand: 0.62 });
+    }
+
+    expect(camera.getState().zoom).toBeLessThanOrEqual(1.18);
+    expect(camera.getState().zoom).toBeGreaterThanOrEqual(0.84);
   });
 });

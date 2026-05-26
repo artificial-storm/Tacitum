@@ -5,7 +5,7 @@ import { applyVisualSensitivity } from './AudioSensitivity';
 import { DotFieldModel } from './DotFieldModel';
 import { JoyFieldModel } from './JoyFieldModel';
 import { topographyRidgeHeight as computeTopographyRidgeHeight } from './TopographyRenderMath';
-import { VisualCamera } from './VisualCamera';
+import { VisualCamera, type VisualCameraMotionMode } from './VisualCamera';
 import { visualHeightDisplacement, visualViewportScale } from './VisualGeometry';
 import { overlapDelayRange, rippleHeightRange, rippleSpeedRange, sensitivityRange, tailDampingRange } from './visualControlDefaults';
 import { visualTokens } from './visualTokens';
@@ -48,6 +48,8 @@ export class ListeningCoreRenderer {
   private sensitivity: number = sensitivityRange.default;
   private rippleHeightScale: number = rippleHeightRange.default;
   private activePointerId: number | null = null;
+  private pinchDistance: number | null = null;
+  private readonly touchPoints = new Map<number, { x: number; y: number }>();
   private rippleSpeed: number = rippleSpeedRange.default;
   private overlapDelayMs: number = overlapDelayRange.default;
   private tailDamping: number = tailDampingRange.default;
@@ -93,6 +95,10 @@ export class ListeningCoreRenderer {
     this.dotModel.setFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
   }
 
+  setCameraMotionMode(mode: VisualCameraMotionMode): void {
+    this.camera.setMotionMode(mode);
+  }
+
   render(frame: ListeningCoreFrame): void {
     this.resize(frame.audio.timestamp);
     const adjustedFrame = this.applySensitivity(this.reducedMotion.matches ? this.reduceMotion(frame) : frame);
@@ -105,7 +111,14 @@ export class ListeningCoreRenderer {
 
     this.context2d.save();
     this.drawBackground();
-    this.camera.update(adjustedFrame.audio.timestamp);
+    this.camera.update(adjustedFrame.audio.timestamp, {
+      energy: adjustedFrame.audio.smoothedRms,
+      transient: adjustedFrame.audio.transient,
+      brightness: adjustedFrame.audio.brightness,
+      lowBand: adjustedFrame.audio.lowBand,
+      midBand: adjustedFrame.audio.midBand,
+      highBand: adjustedFrame.audio.highBand,
+    });
     const cameraState = this.camera.getState();
 
     this.context2d.translate(
@@ -115,7 +128,7 @@ export class ListeningCoreRenderer {
 
     const renderRadius = Math.min(this.width, this.height) * visualViewportScale;
     const activeRadius = this.mode === 'topography' ? this.joyModel.options.radius : this.dotModel.options.radius;
-    const scale = renderRadius / activeRadius;
+    const scale = renderRadius / activeRadius * cameraState.zoom;
     this.context2d.scale(scale, scale);
 
     if (this.mode === 'topography') {
@@ -310,7 +323,18 @@ export class ListeningCoreRenderer {
 
   private bindCameraControls(): void {
     this.canvas.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) {
+      if (event.pointerType === 'mouse' && event.button !== 0) {
+        return;
+      }
+
+      if (event.pointerType !== 'mouse') {
+        this.touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      }
+
+      if (this.touchPoints.size === 2) {
+        this.releaseDrag();
+        this.pinchDistance = this.currentPinchDistance();
+        event.preventDefault();
         return;
       }
 
@@ -322,6 +346,22 @@ export class ListeningCoreRenderer {
     });
 
     this.canvas.addEventListener('pointermove', (event) => {
+      if (this.touchPoints.has(event.pointerId)) {
+        this.touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      }
+
+      if (this.touchPoints.size === 2) {
+        const nextDistance = this.currentPinchDistance();
+
+        if (this.pinchDistance !== null) {
+          this.camera.adjustZoom(this.clamp((nextDistance - this.pinchDistance) / 240, -0.07, 0.07));
+        }
+
+        this.pinchDistance = nextDistance;
+        event.preventDefault();
+        return;
+      }
+
       if (event.pointerId !== this.activePointerId || !this.camera.isDragging()) {
         return;
       }
@@ -331,17 +371,45 @@ export class ListeningCoreRenderer {
     });
 
     const endDrag = (event: PointerEvent): void => {
+      this.touchPoints.delete(event.pointerId);
+
+      if (this.touchPoints.size < 2) {
+        this.pinchDistance = null;
+      }
+
       if (event.pointerId !== this.activePointerId) {
         return;
       }
 
-      this.camera.endDrag();
-      this.activePointerId = null;
-      this.canvas.classList.remove('is-dragging');
+      this.releaseDrag();
     };
 
     this.canvas.addEventListener('pointerup', endDrag);
     this.canvas.addEventListener('pointercancel', endDrag);
+    this.canvas.addEventListener('wheel', (event) => {
+      this.camera.adjustZoom(this.clamp(-event.deltaY * 0.0012, -0.08, 0.08));
+      event.preventDefault();
+    }, { passive: false });
+  }
+
+  private currentPinchDistance(): number {
+    const [first, second] = [...this.touchPoints.values()];
+
+    if (!first || !second) {
+      return 0;
+    }
+
+    return Math.hypot(second.x - first.x, second.y - first.y);
+  }
+
+  private releaseDrag(): void {
+    this.camera.endDrag();
+    this.activePointerId = null;
+    this.canvas.classList.remove('is-dragging');
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
   private applySensitivity(frame: ListeningCoreFrame): ListeningCoreFrame {

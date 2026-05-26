@@ -8,6 +8,7 @@ import { idleSpeechFrame } from '../types/speech';
 import type { SpeakerFrame } from '../types/speakers';
 import { ListeningCoreRenderer, type VisualMode } from '../visual/ListeningCoreRenderer';
 import { applyVisualSensitivity } from '../visual/AudioSensitivity';
+import type { VisualCameraMotionMode } from '../visual/VisualCamera';
 import {
   overlapDelayRange,
   rippleHeightRange,
@@ -24,6 +25,7 @@ type PersistedControls = {
   rippleSpeed: number;
   overlapDelayMs: number;
   tailDamping: number;
+  motionMode: VisualCameraMotionMode;
 };
 
 const controlsStorageKey = 'tacitum1.controls.v1';
@@ -43,6 +45,7 @@ export class App {
   private rippleSpeed: number = rippleSpeedRange.default;
   private overlapDelayMs: number = overlapDelayRange.default;
   private tailDamping: number = tailDampingRange.default;
+  private motionMode: VisualCameraMotionMode = 'fixed';
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -68,6 +71,13 @@ export class App {
             </button>
           </div>
           <div class="advanced-menu${this.panelOpen ? ' is-open' : ''}" id="advanced-menu" aria-hidden="${!this.panelOpen}">
+            <div class="mode-control">
+              <span>Move</span>
+              <button class="visual-toggle motion-toggle" id="motion-toggle" type="button" aria-label="Toggle motion mode" aria-pressed="${this.motionMode === 'auto'}" data-current-motion="${this.motionMode}">
+                <span class="toggle-option${this.motionMode === 'fixed' ? ' is-active' : ''}" data-motion-mode="fixed">Fixed</span>
+                <span class="toggle-option${this.motionMode === 'auto' ? ' is-active' : ''}" data-motion-mode="auto">Auto</span>
+              </button>
+            </div>
             <label class="range-control" for="sensitivity-control">
               <span>Sens</span>
               <input id="sensitivity-control" type="range" min="${sensitivityRange.min}" max="${sensitivityRange.max}" step="${sensitivityRange.step}" value="${this.sensitivity}" />
@@ -102,6 +112,7 @@ export class App {
     this.renderer = new ListeningCoreRenderer(canvas);
     this.renderer.setSensitivity(this.sensitivity);
     this.renderer.setDotFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
+    this.renderer.setCameraMotionMode(this.motionMode);
     this.syncLiftControl();
     this.syncAdvancedControls();
     this.bindControls();
@@ -134,6 +145,23 @@ export class App {
       this.panelOpen = !this.panelOpen;
       this.syncAdvancedControls();
       this.persistControls();
+    });
+
+    this.requiredElement<HTMLButtonElement>('#motion-toggle').addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      this.toggleMotionMode();
+    });
+
+    this.requiredElement<HTMLButtonElement>('#motion-toggle').addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+
+      event.preventDefault();
+      this.toggleMotionMode();
     });
 
     this.requiredElement<HTMLInputElement>('#sensitivity-control').addEventListener('input', (event) => {
@@ -218,6 +246,13 @@ export class App {
     this.persistControls();
   }
 
+  private toggleMotionMode(): void {
+    this.motionMode = this.motionMode === 'fixed' ? 'auto' : 'fixed';
+    this.renderer?.setCameraMotionMode(this.motionMode);
+    this.updateMotionToggle();
+    this.persistControls();
+  }
+
   private syncLiftControl(): void {
     const value = this.liftByMode[this.visualMode];
     const liftControl = this.requiredElement<HTMLInputElement>('#ripple-height-control');
@@ -234,9 +269,20 @@ export class App {
     advancedMenu.classList.toggle('is-open', this.panelOpen);
     advancedMenu.setAttribute('aria-hidden', String(!this.panelOpen));
     panelToggle.setAttribute('aria-expanded', String(this.panelOpen));
+    this.updateMotionToggle();
     this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
     this.requiredElement<HTMLOutputElement>('#overlap-delay-value').value = `${Math.round(this.overlapDelayMs)}ms`;
     this.requiredElement<HTMLOutputElement>('#tail-damping-value').value = this.tailDamping.toFixed(2);
+  }
+
+  private updateMotionToggle(): void {
+    const motionToggle = this.requiredElement<HTMLButtonElement>('#motion-toggle');
+
+    motionToggle.setAttribute('aria-pressed', String(this.motionMode === 'auto'));
+    motionToggle.dataset.currentMotion = this.motionMode;
+    this.root.querySelectorAll<HTMLElement>('[data-motion-mode]').forEach((option) => {
+      option.classList.toggle('is-active', option.dataset.motionMode === this.motionMode);
+    });
   }
 
   private restoreControls(): void {
@@ -254,6 +300,7 @@ export class App {
       this.rippleSpeed = typeof state.rippleSpeed === 'number' ? state.rippleSpeed : this.rippleSpeed;
       this.overlapDelayMs = typeof state.overlapDelayMs === 'number' ? state.overlapDelayMs : this.overlapDelayMs;
       this.tailDamping = typeof state.tailDamping === 'number' ? state.tailDamping : this.tailDamping;
+      this.motionMode = state.motionMode === 'auto' ? 'auto' : 'fixed';
 
       if (state.liftByMode?.depthPlane !== undefined) {
         this.liftByMode.depthPlane = state.liftByMode.depthPlane;
@@ -275,6 +322,7 @@ export class App {
       rippleSpeed: this.rippleSpeed,
       overlapDelayMs: this.overlapDelayMs,
       tailDamping: this.tailDamping,
+      motionMode: this.motionMode,
     };
 
     window.localStorage.setItem(controlsStorageKey, JSON.stringify(state));
