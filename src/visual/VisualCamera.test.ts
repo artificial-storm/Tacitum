@@ -185,8 +185,8 @@ describe('VisualCamera', () => {
 
     expect(state.yaw).toBeLessThanOrEqual(0.95);
     expect(state.yaw).toBeGreaterThanOrEqual(-0.95);
-    expect(state.pitch).toBeLessThanOrEqual(0.58);
-    expect(state.pitch).toBeGreaterThanOrEqual(-0.58);
+    expect(state.pitch).toBeLessThanOrEqual(0.82);
+    expect(state.pitch).toBeGreaterThanOrEqual(-0.82);
   });
 
   test('keeps zoom inside eased bounds for manual and auto movement', () => {

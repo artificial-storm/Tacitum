@@ -67,7 +67,7 @@ export class DotFieldModel {
   private soundMemory = 0;
   private previousSoundPresence = 0;
   private rippleSerial = 0;
-  private rippleSpeed: number = rippleSpeedRange.default;
+  private rippleSpeed = 1;
   private overlapDelayMs: number = overlapDelayRange.default;
   private tailDamping: number = tailDampingRange.default;
 
@@ -259,6 +259,8 @@ export class DotFieldModel {
 
     const distance = Math.hypot(x - ripple.originX, (y - ripple.originY) * 1.18) / this.options.radius;
     const width = 0.037 + ripple.intensity * 0.034;
+    const overlapRatio = this.normalizeControl(this.overlapDelayMs, overlapDelayRange.min, overlapDelayRange.max);
+    const tailRatio = this.normalizeControl(this.tailDamping, tailDampingRange.min, tailDampingRange.max);
     const sourceRadius = 0.038 + currentSoundPressure * 0.018;
     const audibleSourcePressure = currentSoundPressure > 0.01 ? Math.max(currentSoundPressure, 0.18) : 0;
     const sourceArea = Math.exp(-(distance * distance) / (2 * sourceRadius * sourceRadius));
@@ -272,7 +274,7 @@ export class DotFieldModel {
       const delta = Math.abs(distance - wavePosition + bend);
       const troughDelta = Math.abs(distance - (wavePosition - width * 0.68) + bend * 0.6);
       const underDelta = Math.abs(distance - (wavePosition + width * 0.82) + bend * 0.45);
-      const envelope = Math.pow(clamp01(1 - waveAge / ripple.duration), 1.25 + this.tailDamping * 0.35);
+      const envelope = Math.pow(clamp01(1 - waveAge / ripple.duration), 1.3 + tailRatio * 0.7);
       const waveAttack = 0.18 + this.smoothStep(8, 220, waveAge) * 0.82;
       const peak = clamp01(1 - delta / width);
       const trough = clamp01(1 - troughDelta / (width * 0.92));
@@ -281,17 +283,19 @@ export class DotFieldModel {
       const sourceFade = 1 - this.smoothStep(104, 230, waveAge);
       const sourcePressure = Math.pow(sourceArea, 1.55) * audibleSourcePressure * sourceAttack * sourceFade * ripple.intensity * 4.08 * intensityScale;
       const troughDamping = 1 - Math.min(1, sourceArea * sourceAttack * sourceFade * 0.96);
-      const expansionDamping = 1 / (1 + Math.max(0, wavePosition - 0.82) * (2.9 + this.tailDamping * 0.9));
+      const expansionDamping = 1 / (1 + Math.max(0, wavePosition - 0.82) * (2.8 + tailRatio * 2.3333333333));
       const travellingWave = (
         Math.pow(peak, 3.8)
-          - Math.pow(trough, 1.56) * 0.58 * troughDamping
-          - Math.pow(under, 1.64) * 0.34
+          - Math.pow(trough, 1.56) * (0.48 + tailRatio * 0.24) * troughDamping
+          - Math.pow(under, 1.64) * (0.26 + tailRatio * 0.19)
       ) * envelope * expansionDamping * ripple.intensity * 2.09 * waveAttack * intensityScale;
 
       return travellingWave + sourcePressure;
     };
 
-    return waveFor(age, 1) + waveFor(age - this.overlapDelayMs, 0.27);
+    const secondPassIntensity = 0.24 + (1 - overlapRatio) * 0.08;
+
+    return waveFor(age, 1) + waveFor(age - this.overlapDelayMs, secondPassIntensity);
   }
 
   private dominantFrequency(audio: AudioFeatures): number {
@@ -534,6 +538,10 @@ export class DotFieldModel {
     const amount = clamp01((value - edge0) / (edge1 - edge0));
 
     return amount * amount * (3 - 2 * amount);
+  }
+
+  private normalizeControl(value: number, min: number, max: number): number {
+    return clamp01((value - min) / (max - min));
   }
 
   private easeTopographyLift(current: number, target: number, riseRate: number, releaseRate: number): number {

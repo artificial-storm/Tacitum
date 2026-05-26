@@ -311,6 +311,6 @@ export class VisualCamera {
 
   private rotateBy(yawDelta: number, pitchDelta: number): void {
     this.state.yaw = this.clamp(this.state.yaw + yawDelta, -0.95, 0.95);
-    this.state.pitch = this.clamp(this.state.pitch + pitchDelta, -0.58, 0.58);
+    this.state.pitch = this.clamp(this.state.pitch + pitchDelta, -0.82, 0.82);
   }
 }

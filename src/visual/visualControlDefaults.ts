@@ -2,21 +2,21 @@ export const sensitivityRange = {
   min: 0.5,
   max: 5,
   step: 0.05,
-  default: 2.75,
+  default: 5,
 } as const;
 
 export const rippleHeightRange = {
   min: 0.02,
   max: 1.2,
   step: 0.01,
-  default: 0.1,
+  default: 0.2,
 } as const;
 
 export const rippleSpeedRange = {
   min: 0.45,
   max: 1.5,
   step: 0.01,
-  default: 1,
+  default: 0.7,
 } as const;
 
 export const overlapDelayRange = {
@@ -34,7 +34,7 @@ export const tailDampingRange = {
 } as const;
 
 export const visualModeLiftDefaults = {
-  depthPlane: 0.1,
+  depthPlane: 0.2,
   topography: 0.16,
 } as const;
 

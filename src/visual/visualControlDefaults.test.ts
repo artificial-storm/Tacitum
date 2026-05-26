@@ -9,21 +9,21 @@ import {
 } from './visualControlDefaults';
 
 describe('visual control defaults', () => {
-  test('keeps Sens centered by default', () => {
-    expect(sensitivityRange.default).toBeCloseTo((sensitivityRange.min + sensitivityRange.max) / 2, 6);
+  test('uses max Sens by default', () => {
+    expect(sensitivityRange.default).toBe(sensitivityRange.max);
   });
 
-  test('uses DOT-tuned Lift by default', () => {
-    expect(rippleHeightRange.default).toBe(0.1);
+  test('uses a stronger DOT Lift default', () => {
+    expect(rippleHeightRange.default).toBe(0.2);
   });
 
   test('keeps separate Lift defaults for DOT and JOY', () => {
-    expect(visualModeLiftDefaults.depthPlane).toBe(0.1);
+    expect(visualModeLiftDefaults.depthPlane).toBe(0.2);
     expect(visualModeLiftDefaults.topography).toBe(0.16);
   });
 
-  test('keeps DOT speed centered at the neutral default', () => {
-    expect(rippleSpeedRange.default).toBe(1);
+  test('uses a slower DOT speed default', () => {
+    expect(rippleSpeedRange.default).toBe(0.7);
   });
 
   test('uses a moderate DOT overlap delay by default', () => {
