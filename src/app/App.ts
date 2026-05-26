@@ -64,13 +64,6 @@ export class App {
               <span class="toggle-option is-active" data-visual-mode="depthPlane">DOT</span>
               <span class="toggle-option" data-visual-mode="topography">JOY</span>
             </button>
-            <button class="panel-toggle" id="panel-toggle" type="button" aria-label="Toggle control panel" aria-expanded="${this.panelOpen}">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <div class="advanced-menu${this.panelOpen ? ' is-open' : ''}" id="advanced-menu" aria-hidden="${!this.panelOpen}">
             <div class="mode-control">
               <span>Move</span>
               <button class="visual-toggle motion-toggle" id="motion-toggle" type="button" aria-label="Toggle motion mode" aria-pressed="${this.motionMode === 'auto'}" data-current-motion="${this.motionMode}">
@@ -78,6 +71,13 @@ export class App {
                 <span class="toggle-option${this.motionMode === 'auto' ? ' is-active' : ''}" data-motion-mode="auto">Auto</span>
               </button>
             </div>
+            <button class="panel-toggle" id="panel-toggle" type="button" aria-label="Toggle control panel" aria-expanded="${this.panelOpen}">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <div class="advanced-menu${this.panelOpen ? ' is-open' : ''}" id="advanced-menu" aria-hidden="${!this.panelOpen}">
             <label class="range-control" for="sensitivity-control">
               <span>Sens</span>
               <input id="sensitivity-control" type="range" min="${sensitivityRange.min}" max="${sensitivityRange.max}" step="${sensitivityRange.step}" value="${this.sensitivity}" />
