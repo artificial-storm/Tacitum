@@ -140,7 +140,7 @@ export class DotFieldModel {
         );
 
         this.ripples.push({
-          timestamp: frame.speech.timestamp + emitter.delay,
+          timestamp: frame.audio.timestamp + emitter.delay,
           intensity,
           duration: 4200 + rawSoundPresence * 3600 + emitter.energy * 1400,
           originX: this.clampToPlane(originX, this.options.radius * 1.05),

@@ -28,7 +28,8 @@ type PersistedControls = {
   motionMode: VisualCameraMotionMode;
 };
 
-const controlsStorageKey = 'tacitum1.controls.v1';
+const controlsStorageKey = 'tacitum.controls.v1';
+const legacyControlsStorageKey = 'tacitum1.controls.v1';
 
 export class App {
   private readonly audioInput = new AudioInput();
@@ -286,7 +287,7 @@ export class App {
 
   private restoreControls(): void {
     try {
-      const rawState = window.localStorage.getItem(controlsStorageKey);
+      const rawState = window.localStorage.getItem(controlsStorageKey) ?? window.localStorage.getItem(legacyControlsStorageKey);
 
       if (!rawState) {
         return;
@@ -295,21 +296,35 @@ export class App {
       const state = JSON.parse(rawState) as Partial<PersistedControls>;
 
       this.panelOpen = state.panelOpen ?? this.panelOpen;
-      this.sensitivity = typeof state.sensitivity === 'number' ? state.sensitivity : this.sensitivity;
-      this.rippleSpeed = typeof state.rippleSpeed === 'number' ? state.rippleSpeed : this.rippleSpeed;
-      this.overlapDelayMs = typeof state.overlapDelayMs === 'number' ? state.overlapDelayMs : this.overlapDelayMs;
-      this.tailDamping = typeof state.tailDamping === 'number' ? state.tailDamping : this.tailDamping;
+      this.sensitivity = typeof state.sensitivity === 'number'
+        ? Math.min(sensitivityRange.max, Math.max(sensitivityRange.min, state.sensitivity))
+        : this.sensitivity;
+      this.rippleSpeed = typeof state.rippleSpeed === 'number'
+        ? Math.min(rippleSpeedRange.max, Math.max(rippleSpeedRange.min, state.rippleSpeed))
+        : this.rippleSpeed;
+      this.overlapDelayMs = typeof state.overlapDelayMs === 'number'
+        ? Math.min(overlapDelayRange.max, Math.max(overlapDelayRange.min, state.overlapDelayMs))
+        : this.overlapDelayMs;
+      this.tailDamping = typeof state.tailDamping === 'number'
+        ? Math.min(tailDampingRange.max, Math.max(tailDampingRange.min, state.tailDamping))
+        : this.tailDamping;
       this.motionMode = state.motionMode === 'auto' ? 'auto' : 'fixed';
 
       if (state.liftByMode?.depthPlane !== undefined) {
-        this.liftByMode.depthPlane = state.liftByMode.depthPlane;
+        this.liftByMode.depthPlane = Math.min(rippleHeightRange.max, Math.max(rippleHeightRange.min, state.liftByMode.depthPlane));
       }
 
       if (state.liftByMode?.topography !== undefined) {
-        this.liftByMode.topography = state.liftByMode.topography;
+        this.liftByMode.topography = Math.min(rippleHeightRange.max, Math.max(rippleHeightRange.min, state.liftByMode.topography));
+      }
+
+      if (window.localStorage.getItem(controlsStorageKey) === null) {
+        this.persistControls();
+        window.localStorage.removeItem(legacyControlsStorageKey);
       }
     } catch {
       window.localStorage.removeItem(controlsStorageKey);
+      window.localStorage.removeItem(legacyControlsStorageKey);
     }
   }
 
