@@ -1,4 +1,5 @@
-import { createElement, Settings } from 'lucide';
+import createElement from 'lucide/dist/esm/createElement.mjs';
+import Settings from 'lucide/dist/esm/icons/settings.mjs';
 import { AudioAnalyzer } from '../audio/AudioAnalyzer';
 import { AudioInput, type AudioInputSource } from '../audio/AudioInput';
 import { SpeechEventBuffer } from '../speech/SpeechEventBuffer';

@@ -66,6 +66,7 @@ export class DotFieldModel {
   private rippleHeightScale: number = rippleHeightRange.default;
   private soundMemory = 0;
   private previousSoundPresence = 0;
+  private lastRippleTriggerTimestamp = Number.NEGATIVE_INFINITY;
   private rippleSerial = 0;
   private rippleSpeed = 1;
   private tailDamping: number = tailDampingRange.default;
@@ -106,10 +107,14 @@ export class DotFieldModel {
     const hasSubtleFrequencyDetail = spectrumPresence > 0.004;
     const hasSubtleBroadInput = frame.audio.rms > 0.012 || frame.audio.lowBand > 0.012 || frame.audio.midBand > 0.012;
     const subtleSoundStart = rawSoundPresence > 0.018 && rawSoundPresence < 0.38 && risingEnergy > 0.003 && (hasSubtleFrequencyDetail || hasSubtleBroadInput);
-    const shouldStartRipple = mode === 'depthPlane' && (frame.speech.speechStart || subtleSoundStart || (risingEnergy > 0.04 && frame.audio.transient > 0.16) || (risingEnergy > 0.07 && frame.audio.midBand > 0.24));
+    const rippleTriggerIntent = frame.speech.speechStart || subtleSoundStart || (risingEnergy > 0.04 && frame.audio.transient > 0.16) || (risingEnergy > 0.07 && frame.audio.midBand > 0.24);
+    const triggerInterval = Math.max(176, 230 / this.rippleSpeed);
+    const canStartRipple = frame.audio.timestamp - this.lastRippleTriggerTimestamp >= triggerInterval || this.ripples.length === 0;
+    const shouldStartRipple = mode === 'depthPlane' && rippleTriggerIntent && canStartRipple;
 
     if (shouldStartRipple) {
       this.rippleSerial += 1;
+      this.lastRippleTriggerTimestamp = frame.audio.timestamp;
 
       const driftPhase = this.rippleSerial * 2.399963 + frame.audio.timestamp * 0.00053 + frame.audio.spectralCentroid * Math.PI * 2;
       const volumeSpread = (0.18 + rawSoundPresence * 0.68) * this.options.radius;
@@ -149,7 +154,7 @@ export class DotFieldModel {
       }
     }
 
-    this.ripples = this.ripples.filter((ripple) => frame.audio.timestamp - ripple.timestamp < ripple.duration).slice(-20);
+    this.ripples = this.ripples.filter((ripple) => frame.audio.timestamp - ripple.timestamp < ripple.duration).slice(-48);
 
     const soundPresence = clamp01(rawSoundPresence * 0.55 + this.soundMemory * 0.45);
     const currentSoundPressure = this.soundPressureFor(frame.audio, rawSoundPresence, spectrumPresence);
@@ -318,7 +323,7 @@ export class DotFieldModel {
         emitters.push(candidate);
       }
 
-      if (emitters.length === 5) {
+      if (emitters.length === 3) {
         break;
       }
     }
@@ -331,19 +336,15 @@ export class DotFieldModel {
       return [];
     }
 
-    const delayedEmitters = emitters
+    const coherentEmitters = emitters
       .sort((left, right) => left.frequencyRatio - right.frequencyRatio)
-      .map((emitter, index) => ({
+      .map((emitter) => ({
         ...emitter,
         energy: clamp01(emitter.energy * 0.95 + volumeLevel * 0.05),
-        delay: index * (24 + volumeLevel * 14) + emitter.frequencyRatio * 16,
+        delay: 0,
       }));
-    const firstDelay = Math.min(...delayedEmitters.map((emitter) => emitter.delay));
 
-    return delayedEmitters.map((emitter) => ({
-      ...emitter,
-      delay: emitter.delay - firstDelay,
-    }));
+    return coherentEmitters;
   }
 
   private frequencyPeakCandidates(audio: AudioFeatures): RippleEmitterCandidate[] {
@@ -389,9 +390,9 @@ export class DotFieldModel {
 
   private frequencyOriginVector(frequencyRatio: number, planeYRatio: number, phase: number): { x: number; y: number } {
     const centered = clamp01(frequencyRatio) * 2 - 1;
-    const horizontal = Math.sign(centered) * Math.pow(Math.abs(centered), 0.74) * 0.38;
-    const randomDrift = Math.sin(phase * 0.73) * 0.04;
-    const vertical = planeYRatio * 0.12 + centered * 0.37 + Math.cos(phase * 0.91) * (0.035 + Math.abs(centered) * 0.025);
+    const horizontal = centered * (0.68 + Math.abs(centered) * 0.16);
+    const randomDrift = Math.sin(phase * 0.73) * 0.024 * (1 - Math.abs(centered) * 0.32);
+    const vertical = planeYRatio * 0.3 + centered * 0.28 + Math.cos(phase * 0.91) * (0.026 + Math.abs(centered) * 0.016);
 
     return {
       x: this.clampSigned(horizontal + randomDrift),

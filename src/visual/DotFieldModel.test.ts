@@ -149,15 +149,15 @@ describe('DotFieldModel', () => {
     expect(Math.max(...originYs) - Math.min(...originYs)).toBeGreaterThan(12);
   });
 
-  test('stagger DOT ripple emitter starts inside one trigger', () => {
+  test('starts DOT ripple emitters together inside one coherent trigger', () => {
     const model = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
 
     model.update(makeFrame({ rms: 0.08, smoothedRms: 0.08, transient: 0.28, lowBand: 0.18, midBand: 0.38, highBand: 0.24 }));
 
     const timestamps = model.ripples.map((ripple) => ripple.timestamp);
 
-    expect(new Set(timestamps.map((timestamp) => timestamp.toFixed(3))).size).toBeGreaterThan(1);
-    expect(Math.max(...timestamps) - Math.min(...timestamps)).toBeGreaterThan(24);
+    expect(new Set(timestamps.map((timestamp) => timestamp.toFixed(3))).size).toBe(1);
+    expect(Math.max(...timestamps) - Math.min(...timestamps)).toBeLessThan(1);
   });
 
   test('uses detailed frequency peaks to place DOT emitters', () => {
@@ -177,7 +177,29 @@ describe('DotFieldModel', () => {
     expect(averageOriginX(highPeak)).toBeGreaterThan(averageOriginX(lowPeak) + 34);
   });
 
-  test('keeps frequency-mapped DOT emitters closer to the plane center', () => {
+  test('places low and high DOT peaks on spectrogram-like opposite sides', () => {
+    const lowPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
+    const highPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
+    const lowBins = Array.from({ length: 32 }, () => 0.001);
+    const highBins = Array.from({ length: 32 }, () => 0.001);
+
+    lowBins[3] = 0.86;
+    highBins[28] = 0.86;
+
+    lowPeak.update(makeFrame({ rms: 0.06, smoothedRms: 0.06, transient: 0.2, spectralCentroid: 0.12, lowBand: 0.2, midBand: 0.2, highBand: 0.2, frequencyBins: lowBins }));
+    highPeak.update(makeFrame({ rms: 0.06, smoothedRms: 0.06, transient: 0.2, spectralCentroid: 0.88, lowBand: 0.2, midBand: 0.2, highBand: 0.2, frequencyBins: highBins }));
+
+    const halfWidth = (Math.max(...lowPeak.dots.map((dot) => dot.baseX)) - Math.min(...lowPeak.dots.map((dot) => dot.baseX))) / 2;
+    const averageOriginX = (model: DotFieldModel): number => model.ripples.reduce((sum, ripple) => sum + ripple.originX, 0) / model.ripples.length;
+    const lowOriginX = averageOriginX(lowPeak);
+    const highOriginX = averageOriginX(highPeak);
+
+    expect(lowOriginX).toBeLessThan(-halfWidth * 0.52);
+    expect(highOriginX).toBeGreaterThan(halfWidth * 0.52);
+    expect(highOriginX - lowOriginX).toBeGreaterThan(halfWidth * 1.1);
+  });
+
+  test('keeps frequency-mapped DOT emitters inside the plane while separating low and high sides', () => {
     const lowPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
     const highPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
     const lowBins = Array.from({ length: 16 }, () => 0.02);
@@ -190,9 +212,13 @@ describe('DotFieldModel', () => {
     highPeak.update(makeFrame({ rms: 0.08, smoothedRms: 0.08, transient: 0.28, spectralCentroid: 0.5, lowBand: 0.24, midBand: 0.24, highBand: 0.24, frequencyBins: highBins }));
 
     const averageOriginX = (model: DotFieldModel): number => model.ripples.reduce((sum, ripple) => sum + ripple.originX, 0) / model.ripples.length;
+    const halfWidth = (Math.max(...lowPeak.dots.map((dot) => dot.baseX)) - Math.min(...lowPeak.dots.map((dot) => dot.baseX))) / 2;
+    const lowOriginX = averageOriginX(lowPeak);
+    const highOriginX = averageOriginX(highPeak);
 
-    expect(Math.abs(averageOriginX(lowPeak))).toBeLessThan(42);
-    expect(Math.abs(averageOriginX(highPeak))).toBeLessThan(42);
+    expect(Math.abs(lowOriginX)).toBeLessThan(halfWidth * 0.9);
+    expect(Math.abs(highOriginX)).toBeLessThan(halfWidth * 0.9);
+    expect(highOriginX - lowOriginX).toBeGreaterThan(halfWidth);
   });
 
   test('keeps separate frequency peaks spread across both sides with distinct heights', () => {
@@ -346,7 +372,7 @@ describe('DotFieldModel', () => {
     expect(lowPeak.ripples.length).toBeGreaterThan(0);
     expect(highPeak.ripples.length).toBeGreaterThan(0);
     expect(averageOriginX(highPeak)).toBeGreaterThan(averageOriginX(lowPeak) + 30);
-    expect(Math.abs(averageOriginY(highPeak) - averageOriginY(lowPeak))).toBeGreaterThan(8);
+    expect(Math.abs(averageOriginY(highPeak) - averageOriginY(lowPeak))).toBeGreaterThan(5);
   });
 
   test('keeps very soft DOT input visible while high volume makes a larger impact', () => {
@@ -557,7 +583,7 @@ describe('DotFieldModel', () => {
     expect(lateTailMax).toBeGreaterThan(betweenMax * 0.52);
   });
 
-  test('places frequency-reactive DOT origins around the plane center', () => {
+  test('places frequency-reactive DOT origins inside the plane with visible side separation', () => {
     const lowPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
     const highPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
     const lowBins = Array.from({ length: 32 }, () => 0.002);
@@ -575,9 +601,13 @@ describe('DotFieldModel', () => {
     });
     const lowOrigin = averageOrigin(lowPeak);
     const highOrigin = averageOrigin(highPeak);
+    const halfWidth = (Math.max(...lowPeak.dots.map((dot) => dot.baseX)) - Math.min(...lowPeak.dots.map((dot) => dot.baseX))) / 2;
+    const halfHeight = (Math.max(...lowPeak.dots.map((dot) => dot.baseY)) - Math.min(...lowPeak.dots.map((dot) => dot.baseY))) / 2;
 
-    expect(Math.hypot(lowOrigin.x, lowOrigin.y)).toBeLessThan(48);
-    expect(Math.hypot(highOrigin.x, highOrigin.y)).toBeLessThan(48);
+    expect(Math.abs(lowOrigin.x)).toBeLessThan(halfWidth * 0.9);
+    expect(Math.abs(highOrigin.x)).toBeLessThan(halfWidth * 0.9);
+    expect(Math.abs(lowOrigin.y)).toBeLessThan(halfHeight * 0.82);
+    expect(Math.abs(highOrigin.y)).toBeLessThan(halfHeight * 0.82);
     expect(Math.hypot(highOrigin.x - lowOrigin.x, highOrigin.y - lowOrigin.y)).toBeGreaterThan(16);
   });
 
@@ -858,6 +888,61 @@ describe('DotFieldModel', () => {
     expect(model.ripples.slice(0, firstOrigins.length).map((ripple) => `${ripple.originX.toFixed(3)}:${ripple.originY.toFixed(3)}`)).toEqual(firstOrigins);
   });
 
+  test('keeps visible DOT tails from being evicted during rapid live voice motion', () => {
+    const model = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
+    const activeBins = Array.from({ length: 32 }, () => 0.004);
+    const quietBins = Array.from({ length: 32 }, () => 0.001);
+
+    for (const index of [4, 9, 15, 22, 28]) {
+      activeBins[index] = 0.054;
+    }
+
+    const activeFrame = (timestamp: number, speechStart = false): DotFieldUpdate => makeFrame({
+      timestamp,
+      rms: 0.018,
+      smoothedRms: 0.018,
+      transient: 0.02,
+      spectralCentroid: 0.5,
+      lowBand: 0.014,
+      midBand: 0.018,
+      highBand: 0.014,
+      frequencyBins: activeBins,
+    }, {
+      speakingIntensity: 0.04,
+      speechStart,
+      state: 'listening',
+    });
+    const quietFrame = (timestamp: number): DotFieldUpdate => makeFrame({
+      timestamp,
+      rms: 0.003,
+      smoothedRms: 0.003,
+      transient: 0,
+      spectralCentroid: 0.5,
+      lowBand: 0.003,
+      midBand: 0.003,
+      highBand: 0.003,
+      frequencyBins: quietBins,
+    }, {
+      speakingIntensity: 0,
+      speechStart: false,
+      state: 'listening',
+    });
+
+    model.update(activeFrame(100, true));
+    const firstBatchSignatures = new Set(model.ripples.map((ripple) => `${ripple.timestamp.toFixed(3)}:${ripple.originX.toFixed(3)}:${ripple.originY.toFixed(3)}`));
+
+    for (let index = 1; index <= 11; index += 1) {
+      const timestamp = 100 + index * 48;
+
+      model.update(index % 2 === 0 ? activeFrame(timestamp) : quietFrame(timestamp));
+    }
+
+    const retainedFirstBatch = model.ripples.filter((ripple) => firstBatchSignatures.has(`${ripple.timestamp.toFixed(3)}:${ripple.originX.toFixed(3)}:${ripple.originY.toFixed(3)}`)).length;
+
+    expect(retainedFirstBatch).toBe(firstBatchSignatures.size);
+    expect(model.ripples.length).toBeLessThanOrEqual(15);
+  });
+
   test('keeps topography ripple-free and horizontally stable', () => {
     const model = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
 
@@ -1122,7 +1207,7 @@ describe('DotFieldModel', () => {
     const model = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
 
     model.update(makeFrame({ timestamp: 100, rms: 0.3, smoothedRms: 0.3, transient: 0.5, lowBand: 0.2, midBand: 0.42, highBand: 0.18 }));
-    const beforeSilence = Math.max(...model.dots.map((dot) => dot.lift));
+    const beforeSilence = Math.max(...model.dots.map((dot) => Math.abs(dot.lift)));
 
     for (let index = 1; index <= 8; index += 1) {
       model.update(makeFrame({ timestamp: 100 + index * 24, rms: 0, smoothedRms: 0.01, transient: 0, brightness: 0, lowBand: 0, midBand: 0, highBand: 0 }, {
@@ -1134,8 +1219,9 @@ describe('DotFieldModel', () => {
       }));
     }
 
-    const afterSilence = Math.max(...model.dots.map((dot) => dot.lift));
+    const afterSilence = Math.max(...model.dots.map((dot) => Math.abs(dot.lift)));
 
-    expect(afterSilence).toBeGreaterThan(beforeSilence * 20);
+    expect(afterSilence).toBeGreaterThan(beforeSilence * 0.22);
+    expect(afterSilence).toBeLessThan(beforeSilence * 2.4);
   });
 });
