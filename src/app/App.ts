@@ -1,3 +1,4 @@
+import { createElement, Settings } from 'lucide';
 import { AudioAnalyzer } from '../audio/AudioAnalyzer';
 import { AudioInput, type AudioInputSource } from '../audio/AudioInput';
 import { SpeechEventBuffer } from '../speech/SpeechEventBuffer';
@@ -72,9 +73,6 @@ export class App {
               </button>
             </div>
             <button class="panel-toggle" id="panel-toggle" type="button" aria-label="Toggle control panel" aria-expanded="${this.panelOpen}">
-              <svg class="panel-toggle-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M21.2 13.3v-2.6l-2-.4a7.8 7.8 0 0 0-.5-1.2l1.2-1.7-1.8-1.8-1.7 1.2a7.8 7.8 0 0 0-1.2-.5l-.4-2h-2.6l-.4 2a7.8 7.8 0 0 0-1.2.5L7 5.6 5.2 7.4l1.2 1.7a7.8 7.8 0 0 0-.5 1.2l-2 .4v2.6l2 .4a7.8 7.8 0 0 0 .5 1.2l-1.2 1.7L7 18.4l1.7-1.2a7.8 7.8 0 0 0 1.2.5l.4 2h2.6l.4-2a7.8 7.8 0 0 0 1.2-.5l1.7 1.2 1.8-1.8-1.2-1.7a7.8 7.8 0 0 0 .5-1.2l2-.4ZM12 15.1A3.1 3.1 0 1 1 12 9a3.1 3.1 0 0 1 0 6.2Z" />
-              </svg>
             </button>
           </div>
           <div class="advanced-menu${this.panelOpen ? ' is-open' : ''}" id="advanced-menu" aria-hidden="${!this.panelOpen}">
@@ -109,10 +107,12 @@ export class App {
       </main>
     `;
 
+    this.mountSettingsIcon();
+
     const canvas = this.requiredElement<HTMLCanvasElement>('.core-canvas');
     this.renderer = new ListeningCoreRenderer(canvas);
     this.renderer.setSensitivity(this.sensitivity);
-    this.renderer.setDotFlowControls(this.rippleSpeed, tailDampingRange.default);
+    this.renderer.setVisualSpeed(this.rippleSpeed, tailDampingRange.default);
     this.renderer.setCameraMotionMode(this.motionMode);
     this.renderer.setCameraZoom(this.cameraZoom);
     this.syncLiftControl();
@@ -183,7 +183,7 @@ export class App {
 
     this.requiredElement<HTMLInputElement>('#ripple-speed-control').addEventListener('input', (event) => {
       this.rippleSpeed = Number((event.currentTarget as HTMLInputElement).value);
-      this.renderer?.setDotFlowControls(this.rippleSpeed, tailDampingRange.default);
+      this.renderer?.setVisualSpeed(this.rippleSpeed, tailDampingRange.default);
       this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
       this.persistControls();
     });
@@ -211,6 +211,17 @@ export class App {
       event.preventDefault();
       void this.toggleAudioSource();
     });
+  }
+
+  private mountSettingsIcon(): void {
+    const panelToggle = this.requiredElement<HTMLButtonElement>('#panel-toggle');
+    const icon = createElement(Settings, {
+      class: 'panel-toggle-icon',
+      'aria-hidden': 'true',
+      focusable: 'false',
+    });
+
+    panelToggle.replaceChildren(icon);
   }
 
   private async toggleAudioInput(): Promise<void> {

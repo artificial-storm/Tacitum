@@ -62,7 +62,7 @@ export class ListeningCoreRenderer {
 
     this.context2d = context2d;
     this.canvas.dataset.mode = this.mode;
-    this.dotModel.setFlowControls(this.rippleSpeed, this.tailDamping);
+    this.applySpeedControl();
     this.bindCameraControls();
     this.resize();
   }
@@ -87,10 +87,10 @@ export class ListeningCoreRenderer {
     this.joyModel.setTopographyHeightScale(this.rippleHeightScale);
   }
 
-  setDotFlowControls(speed: number, tailDamping: number): void {
+  setVisualSpeed(speed: number, tailDamping: number): void {
     this.rippleSpeed = Math.min(rippleSpeedRange.max, Math.max(rippleSpeedRange.min, speed));
     this.tailDamping = Math.min(tailDampingRange.max, Math.max(tailDampingRange.min, tailDamping));
-    this.dotModel.setFlowControls(this.rippleSpeed, this.tailDamping);
+    this.applySpeedControl();
   }
 
   setCameraMotionMode(mode: VisualCameraMotionMode): void {
@@ -288,6 +288,11 @@ export class ListeningCoreRenderer {
       phaseOffset,
       heightScale: this.rippleHeightScale,
     });
+  }
+
+  private applySpeedControl(): void {
+    this.dotModel.setFlowControls(this.rippleSpeed, this.tailDamping);
+    this.joyModel.setProgressionSpeed(this.rippleSpeed / rippleSpeedRange.default);
   }
 
   private planePivotFor(points: PlanePoint[]): PlanePivot {

@@ -42,6 +42,7 @@ export class JoyFieldModel {
   private readonly cycleTopographyTargets: number[];
   private readonly cycleDuration = 5200;
   private topographyHeightScale = joyModelHeightScaleFor(rippleHeightRange.default);
+  private progressionSpeed = 1;
   private soundMemory = 0;
   private previousSoundPresence = 0;
 
@@ -57,6 +58,10 @@ export class JoyFieldModel {
 
   setTopographyHeightScale(scale: number): void {
     this.topographyHeightScale = joyModelHeightScaleFor(scale);
+  }
+
+  setProgressionSpeed(speed: number): void {
+    this.progressionSpeed = Math.min(2.4, Math.max(0.35, speed));
   }
 
   update(frame: JoyFieldUpdate): void {
@@ -75,17 +80,18 @@ export class JoyFieldModel {
     const heightLevel = clamp01(frame.audio.smoothedRms * 1.18 + frame.audio.rms * 0.42 + frame.speech.speakingIntensity * 0.1 + detailedPresence * 0.72);
     const liftReleaseRate = abruptRelease ? 0.08 : fadingRelease ? 0.048 : 0.055;
     const lineReleaseRate = abruptRelease ? 0.46 : fadingRelease ? 0.38 : 0.42;
+    const progressionTimestamp = frame.audio.timestamp * this.progressionSpeed;
+    const currentCycleIndex = Math.floor(progressionTimestamp / this.cycleDuration);
 
     for (let rowIndex = 0; rowIndex < this.rows.length; rowIndex += 1) {
       const row = this.rows[rowIndex];
-      const lineActivation = this.lineActivationAt(frame.audio.timestamp, rowIndex, liveSoundPresence);
+      const lineActivation = this.lineActivationAt(progressionTimestamp, rowIndex, liveSoundPresence);
       const currentLineEnergy = this.lineEnergies[rowIndex] ?? 0;
       const lineTarget = clamp01(soundPresence * lineActivation);
       const lineRiseRate = 0.42 + frame.audio.transient * 0.08 + frame.audio.rhythm * 0.025;
       const lineEnergy = smoothValue(currentLineEnergy, lineTarget, lineTarget > currentLineEnergy ? lineRiseRate : lineReleaseRate);
       const lineActive = lineTarget > 0.04;
       const lineWasActive = this.lineWasActive[rowIndex] ?? false;
-      const currentCycleIndex = Math.floor(frame.audio.timestamp / this.cycleDuration);
       const sameCycle = lineActive && lineWasActive && this.lineActiveCycleIndexes[rowIndex] === currentCycleIndex;
 
       this.lineEnergies[rowIndex] = lineEnergy;

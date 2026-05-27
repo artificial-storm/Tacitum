@@ -274,6 +274,21 @@ describe('JoyFieldModel', () => {
     expect(Math.min(...strongestByRow)).toBeGreaterThan(0.18);
   });
 
+  test('uses progression speed to move JOY focus between lines faster', () => {
+    const normal = new JoyFieldModel({ rings: 6, dotsPerRing: 10, radius: 80 });
+    const faster = new JoyFieldModel({ rings: 6, dotsPerRing: 10, radius: 80 });
+    const activeRowIndex = (model: JoyFieldModel): number => model.rows
+      .map((row) => row[0]?.lineEnergy ?? 0)
+      .reduce((strongestIndex, energy, index, energies) => (energy > energies[strongestIndex] ? index : strongestIndex), 0);
+
+    normal.setProgressionSpeed(1);
+    faster.setProgressionSpeed(1.5);
+    normal.update(loudJoyFrame(1800));
+    faster.update(loudJoyFrame(1800));
+
+    expect(activeRowIndex(faster)).toBeGreaterThan(activeRowIndex(normal) + 1);
+  });
+
   test('keeps JOY baseline fixed when volume rises', () => {
     const quiet = new JoyFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
     const loud = new JoyFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
