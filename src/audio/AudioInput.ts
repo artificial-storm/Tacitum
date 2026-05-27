@@ -45,9 +45,9 @@ export class AudioInput {
         ? await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true })
         : await navigator.mediaDevices.getUserMedia({
           audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
             autoGainControl: false,
+            echoCancellation: false,
+            noiseSuppression: false,
           },
         });
 

@@ -21,7 +21,9 @@ export class AudioAnalyzer {
   ) {
     this.analyser = audioContext.createAnalyser();
     this.analyser.fftSize = 2048;
-    this.analyser.smoothingTimeConstant = 0.62;
+    this.analyser.minDecibels = -96;
+    this.analyser.maxDecibels = -8;
+    this.analyser.smoothingTimeConstant = 0.48;
     this.timeData = new Float32Array(this.analyser.fftSize) as Float32Array<ArrayBuffer>;
     this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     sourceNode.connect(this.analyser);

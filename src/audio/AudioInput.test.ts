@@ -48,6 +48,26 @@ describe('AudioInput', () => {
     expect(input.status).toBe('active');
   });
 
+  test('requests raw microphone audio without browser speech filtering', async () => {
+    const getUserMedia = vi.fn().mockResolvedValue(mediaStream(1));
+
+    vi.stubGlobal('window', { AudioContext: MockAudioContext });
+    vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia: vi.fn(), getUserMedia } });
+
+    const input = new AudioInput();
+
+    await input.start('microphone');
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: {
+        autoGainControl: false,
+        echoCancellation: false,
+        noiseSuppression: false,
+      },
+    });
+    expect(input.status).toBe('active');
+  });
+
   test('rejects display media when no audio track is shared', async () => {
     vi.stubGlobal('window', { AudioContext: MockAudioContext });
     vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia: vi.fn().mockResolvedValue(mediaStream(0)), getUserMedia: vi.fn() } });
