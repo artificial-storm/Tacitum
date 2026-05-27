@@ -1,9 +1,9 @@
 # Tacitum
 
-Tacitum is a real-time microphone visualizer for conversational listening states.
+Tacitum is a real-time browser audio visualizer for conversational listening states.
 
 It transforms live audio into two expressive modes:
-- DOT: a ripple-driven depth plane with controllable flow, overlap, and tail behavior
+- DOT: a ripple-driven depth plane with controllable lift and flow behavior
 - JOY: a topographic field for broader ambient shape and energy
 
 Built with TypeScript + Vite, Tacitum is designed for fast local iteration, deterministic model tests, and production deployment on Vercel.
@@ -24,9 +24,9 @@ Built with TypeScript + Vite, Tacitum is designed for fast local iteration, dete
 
 ## Core Features
 
-- Real-time audio analysis and visualization
+- Real-time microphone or shared tab-audio analysis and visualization
 - Two visual modes (DOT / JOY)
-- Fine-grained controls for sensitivity, lift, speed, overlap, and tail damping
+- Fine-grained controls for sensitivity, lift, speed, and browser audio source
 - Camera controls with drag rotation, zoom, and optional ambient auto motion
 - Persistent control state in local storage with migration safeguards
 - Strong unit test coverage for audio math, visual geometry, camera behavior, and state machines

@@ -1,5 +1,5 @@
 import { AudioAnalyzer } from '../audio/AudioAnalyzer';
-import { AudioInput } from '../audio/AudioInput';
+import { AudioInput, type AudioInputSource } from '../audio/AudioInput';
 import { SpeechEventBuffer } from '../speech/SpeechEventBuffer';
 import { SpeechStateMachine } from '../speech/SpeechStateMachine';
 import { MockSpeakerEngine } from '../speakers/MockSpeakerEngine';
@@ -24,6 +24,7 @@ type PersistedControls = {
   liftByMode: Record<VisualMode, number>;
   rippleSpeed: number;
   motionMode: VisualCameraMotionMode;
+  audioSource: AudioInputSource;
 };
 
 const controlsStorageKey = 'tacitum.controls.v1';
@@ -43,6 +44,7 @@ export class App {
   private panelOpen = false;
   private rippleSpeed: number = rippleSpeedRange.default;
   private motionMode: VisualCameraMotionMode = 'fixed';
+  private audioSource: AudioInputSource = 'microphone';
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -88,6 +90,12 @@ export class App {
               <input id="ripple-speed-control" type="range" min="${rippleSpeedRange.min}" max="${rippleSpeedRange.max}" step="${rippleSpeedRange.step}" value="${this.rippleSpeed}" />
               <output id="ripple-speed-value" for="ripple-speed-control">${this.rippleSpeed.toFixed(2)}x</output>
             </label>
+            <div class="mode-control source-control" aria-label="Audio source">
+              <button class="visual-toggle source-toggle" id="source-toggle" type="button" aria-label="Toggle audio source" aria-pressed="${this.audioSource === 'tabAudio'}" data-current-source="${this.audioSource}">
+                <span class="toggle-option${this.audioSource === 'microphone' ? ' is-active' : ''}" data-audio-source="microphone">Mic</span>
+                <span class="toggle-option${this.audioSource === 'tabAudio' ? ' is-active' : ''}" data-audio-source="tabAudio">Tab audio</span>
+              </button>
+            </div>
           </div>
           <div class="error-text" id="error-text" role="status"></div>
         </section>
@@ -107,7 +115,7 @@ export class App {
 
   private bindControls(): void {
     this.requiredElement<HTMLButtonElement>('#mic-toggle').addEventListener('click', () => {
-      void this.toggleMicrophone();
+      void this.toggleAudioInput();
     });
 
     this.requiredElement<HTMLButtonElement>('#visual-toggle').addEventListener('pointerdown', (event) => {
@@ -171,15 +179,32 @@ export class App {
       this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
       this.persistControls();
     });
+
+    this.requiredElement<HTMLButtonElement>('#source-toggle').addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      void this.toggleAudioSource();
+    });
+
+    this.requiredElement<HTMLButtonElement>('#source-toggle').addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+
+      event.preventDefault();
+      void this.toggleAudioSource();
+    });
   }
 
-  private async toggleMicrophone(): Promise<void> {
+  private async toggleAudioInput(): Promise<void> {
     if (this.audioInput.status === 'active') {
-      this.stopMicrophone();
+      this.stopAudioInput();
       return;
     }
 
-    await this.audioInput.start();
+    await this.audioInput.start(this.audioSource);
 
     if (!this.audioInput.isActive()) {
       this.updateStaticStatus();
@@ -200,6 +225,23 @@ export class App {
     this.speakerEngine.reset();
     this.eventBuffer.clear();
     this.updateStaticStatus();
+  }
+
+  private async toggleAudioSource(): Promise<void> {
+    const wasActive = this.audioInput.isActive();
+
+    if (wasActive) {
+      this.stopAudioInput();
+    }
+
+    this.audioSource = this.audioSource === 'microphone' ? 'tabAudio' : 'microphone';
+    this.updateAudioSourceToggle();
+    this.updateStaticStatus();
+    this.persistControls();
+
+    if (wasActive) {
+      await this.toggleAudioInput();
+    }
   }
 
   private updateVisualToggle(): void {
@@ -242,7 +284,18 @@ export class App {
     advancedMenu.setAttribute('aria-hidden', String(!this.panelOpen));
     panelToggle.setAttribute('aria-expanded', String(this.panelOpen));
     this.updateMotionToggle();
+    this.updateAudioSourceToggle();
     this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
+  }
+
+  private updateAudioSourceToggle(): void {
+    const sourceToggle = this.requiredElement<HTMLButtonElement>('#source-toggle');
+
+    sourceToggle.setAttribute('aria-pressed', String(this.audioSource === 'tabAudio'));
+    sourceToggle.dataset.currentSource = this.audioSource;
+    this.root.querySelectorAll<HTMLElement>('[data-audio-source]').forEach((option) => {
+      option.classList.toggle('is-active', option.dataset.audioSource === this.audioSource);
+    });
   }
 
   private updateMotionToggle(): void {
@@ -273,6 +326,7 @@ export class App {
         ? Math.min(rippleSpeedRange.max, Math.max(rippleSpeedRange.min, state.rippleSpeed))
         : this.rippleSpeed;
       this.motionMode = state.motionMode === 'auto' ? 'auto' : 'fixed';
+      this.audioSource = state.audioSource === 'tabAudio' ? 'tabAudio' : 'microphone';
 
       if (state.liftByMode?.depthPlane !== undefined) {
         this.liftByMode.depthPlane = Math.min(rippleHeightRange.max, Math.max(rippleHeightRange.min, state.liftByMode.depthPlane));
@@ -299,12 +353,13 @@ export class App {
       liftByMode: { ...this.liftByMode },
       rippleSpeed: this.rippleSpeed,
       motionMode: this.motionMode,
+      audioSource: this.audioSource,
     };
 
     window.localStorage.setItem(controlsStorageKey, JSON.stringify(state));
   }
 
-  private stopMicrophone(): void {
+  private stopAudioInput(): void {
     this.audioAnalyzer?.dispose();
     this.audioAnalyzer = null;
     this.audioInput.stop();
@@ -340,7 +395,9 @@ export class App {
     const micToggle = this.requiredElement<HTMLButtonElement>('#mic-toggle');
     const isActive = this.audioInput.isActive();
 
-    micToggle.textContent = isActive ? 'Stop mic' : 'Start mic';
+    micToggle.textContent = isActive
+      ? 'Stop audio'
+      : this.audioSource === 'tabAudio' ? 'Share tab audio' : 'Start mic';
     micToggle.classList.toggle('is-active', isActive);
     micToggle.setAttribute('aria-pressed', String(isActive));
     this.requiredElement('#error-text').textContent = this.audioInput.errorMessage;
