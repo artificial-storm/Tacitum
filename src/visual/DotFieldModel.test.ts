@@ -199,6 +199,26 @@ describe('DotFieldModel', () => {
     expect(highOriginX - lowOriginX).toBeGreaterThan(halfWidth * 1.1);
   });
 
+  test('keeps low-frequency DOT emitters from piling into the lower-left corner', () => {
+    const model = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
+    const lowRichBins = Array.from({ length: 32 }, () => 0.003);
+
+    lowRichBins[2] = 0.9;
+    lowRichBins[4] = 0.85;
+    lowRichBins[6] = 0.79;
+    lowRichBins[8] = 0.73;
+    lowRichBins[10] = 0.68;
+    model.update(makeFrame({ rms: 0.1, smoothedRms: 0.1, transient: 0.24, spectralCentroid: 0.14, lowBand: 0.34, midBand: 0.14, highBand: 0.06, frequencyBins: lowRichBins }));
+
+    const halfWidth = (Math.max(...model.dots.map((dot) => dot.baseX)) - Math.min(...model.dots.map((dot) => dot.baseX))) / 2;
+    const farLeftEmitters = model.ripples.filter((ripple) => ripple.originX < -halfWidth * 0.5);
+
+    expect(model.ripples.length).toBeGreaterThan(0);
+    expect(model.ripples.every((ripple) => ripple.originX < -halfWidth * 0.2)).toBe(true);
+    expect(farLeftEmitters).toHaveLength(1);
+    expect(Math.max(...model.ripples.map((ripple) => ripple.originY)) - Math.min(...model.ripples.map((ripple) => ripple.originY))).toBeGreaterThan(7);
+  });
+
   test('keeps frequency-mapped DOT emitters inside the plane while separating low and high sides', () => {
     const lowPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });
     const highPeak = new DotFieldModel({ rings: 4, dotsPerRing: 10, radius: 80 });

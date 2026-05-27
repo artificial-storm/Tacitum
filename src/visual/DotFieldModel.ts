@@ -319,7 +319,7 @@ export class DotFieldModel {
     const emitters: RippleEmitterCandidate[] = [];
 
     for (const candidate of candidates) {
-      if (emitters.every((emitter) => Math.abs(emitter.frequencyRatio - candidate.frequencyRatio) > 0.055)) {
+      if (emitters.every((emitter) => Math.abs(emitter.frequencyRatio - candidate.frequencyRatio) > 0.16)) {
         emitters.push(candidate);
       }
 
