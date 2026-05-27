@@ -26,7 +26,7 @@ Built with TypeScript + Vite, Tacitum is designed for fast local iteration, dete
 
 - Real-time microphone or shared tab-audio analysis and visualization
 - Two visual modes (DOT / JOY)
-- Fine-grained controls for sensitivity, lift, speed, and browser audio source
+- Fine-grained controls for sensitivity, lift, speed, zoom, and browser audio source
 - Camera controls with drag rotation, zoom, and optional ambient auto motion
 - Persistent control state in local storage with migration safeguards
 - Strong unit test coverage for audio math, visual geometry, camera behavior, and state machines

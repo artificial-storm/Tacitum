@@ -19,11 +19,11 @@ export const rippleSpeedRange = {
   default: 0.7,
 } as const;
 
-export const overlapDelayRange = {
-  min: 400,
-  max: 1400,
-  step: 10,
-  default: 920,
+export const cameraZoomRange = {
+  min: 0.84,
+  max: 1.18,
+  step: 0.01,
+  default: 1,
 } as const;
 
 export const tailDampingRange = {

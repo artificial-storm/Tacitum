@@ -3,7 +3,7 @@ import type { AudioFeatures } from '../types/audio';
 import type { SpeechActivityFrame } from '../types/speech';
 import type { SpeakerFrame } from '../types/speakers';
 import { visualHeightDisplacement, visualPlaneDimensions } from './VisualGeometry';
-import { overlapDelayRange, rippleHeightRange, rippleSpeedRange, tailDampingRange } from './visualControlDefaults';
+import { rippleHeightRange, rippleSpeedRange, tailDampingRange } from './visualControlDefaults';
 
 export type DotFieldOptions = {
   rings: number;
@@ -68,7 +68,6 @@ export class DotFieldModel {
   private previousSoundPresence = 0;
   private rippleSerial = 0;
   private rippleSpeed = 1;
-  private overlapDelayMs: number = overlapDelayRange.default;
   private tailDamping: number = tailDampingRange.default;
 
   constructor(options: DotFieldOptions) {
@@ -81,9 +80,8 @@ export class DotFieldModel {
     this.rippleHeightScale = Math.min(1.2, Math.max(0.02, scale));
   }
 
-  setFlowControls(speed: number, overlapDelayMs: number, tailDamping: number): void {
+  setFlowControls(speed: number, tailDamping: number): void {
     this.rippleSpeed = Math.min(rippleSpeedRange.max, Math.max(rippleSpeedRange.min, speed));
-    this.overlapDelayMs = Math.min(overlapDelayRange.max, Math.max(overlapDelayRange.min, overlapDelayMs));
     this.tailDamping = Math.min(tailDampingRange.max, Math.max(tailDampingRange.min, tailDamping));
   }
 
@@ -262,7 +260,6 @@ export class DotFieldModel {
 
     const distance = Math.hypot(x - ripple.originX, (y - ripple.originY) * 1.18) / this.options.radius;
     const width = 0.037 + ripple.intensity * 0.034;
-    const overlapRatio = this.normalizeControl(this.overlapDelayMs, overlapDelayRange.min, overlapDelayRange.max);
     const tailRatio = this.normalizeControl(this.tailDamping, tailDampingRange.min, tailDampingRange.max);
     const sourceRadius = 0.038 + currentSoundPressure * 0.018;
     const sourcePresence = this.smoothStep(0.018, 0.12, currentSoundPressure);
@@ -297,9 +294,7 @@ export class DotFieldModel {
       return travellingWave + sourcePressure;
     };
 
-    const secondPassIntensity = 0.24 + (1 - overlapRatio) * 0.08;
-
-    return waveFor(age, 1) + waveFor(age - this.overlapDelayMs, secondPassIntensity);
+    return waveFor(age, 1);
   }
 
   private dominantFrequency(audio: AudioFeatures): number {

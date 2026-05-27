@@ -499,10 +499,10 @@ describe('DotFieldModel', () => {
     expect(lateMaxLift).toBeLessThan(maxLift * 0.9);
   });
 
-  test('runs a second lower-intensity DOT ripple pass from the origin', () => {
+  test('keeps late DOT tails from restarting at the origin', () => {
     const firstPass = new DotFieldModel({ rings: 8, dotsPerRing: 20, radius: 80 });
     const betweenPasses = new DotFieldModel({ rings: 8, dotsPerRing: 20, radius: 80 });
-    const secondPass = new DotFieldModel({ rings: 8, dotsPerRing: 20, radius: 80 });
+    const lateTail = new DotFieldModel({ rings: 8, dotsPerRing: 20, radius: 80 });
     const ripple = { timestamp: 100, intensity: 1.25, duration: 5200, originX: 0, originY: 0, speakerId: null };
     const sourceLift = (model: DotFieldModel): number => {
       const sourceDots = model.dots.filter((dot) => Math.hypot(dot.baseX, dot.baseY * 1.18) / model.options.radius < 0.24);
@@ -512,7 +512,7 @@ describe('DotFieldModel', () => {
 
     firstPass.ripples = [ripple];
     betweenPasses.ripples = [ripple];
-    secondPass.ripples = [ripple];
+    lateTail.ripples = [ripple];
     firstPass.update(makeFrame({ timestamp: 220, rms: 0.12, smoothedRms: 0.12, transient: 0, lowBand: 0.12, midBand: 0.18, highBand: 0.08 }, {
       speakingIntensity: 0,
       speechStart: false,
@@ -521,47 +521,40 @@ describe('DotFieldModel', () => {
       speakingIntensity: 0,
       speechStart: false,
     }));
-    secondPass.update(makeFrame({ timestamp: 1340, rms: 0.12, smoothedRms: 0.12, transient: 0, lowBand: 0.12, midBand: 0.18, highBand: 0.08 }, {
+    lateTail.update(makeFrame({ timestamp: 1340, rms: 0.12, smoothedRms: 0.12, transient: 0, lowBand: 0.12, midBand: 0.18, highBand: 0.08 }, {
       speakingIntensity: 0,
       speechStart: false,
     }));
 
     const firstSourceLift = sourceLift(firstPass);
     const betweenSourceLift = sourceLift(betweenPasses);
-    const secondSourceLift = sourceLift(secondPass);
+    const lateSourceLift = sourceLift(lateTail);
     expect(betweenSourceLift).toBeLessThan(firstSourceLift * 0.9);
-    expect(secondSourceLift).toBeGreaterThan(0.05);
-    expect(secondSourceLift).toBeLessThan(betweenSourceLift * 0.45);
-    expect(secondSourceLift).toBeLessThan(firstSourceLift * 0.55);
+    expect(lateSourceLift).toBeLessThan(firstSourceLift * 0.22);
+    expect(lateSourceLift).toBeLessThan(0.045);
   });
 
-  test('keeps DOT ripple energy continuous while the second pass starts', () => {
+  test('keeps DOT ripple energy continuous while the tail leaves the source', () => {
     const between = new DotFieldModel({ rings: 8, dotsPerRing: 20, radius: 80 });
-    const restarting = new DotFieldModel({ rings: 8, dotsPerRing: 20, radius: 80 });
+    const lateTail = new DotFieldModel({ rings: 8, dotsPerRing: 20, radius: 80 });
     const ripple = { timestamp: 100, intensity: 1.2, duration: 5600, originX: 0, originY: 0, speakerId: null };
-    const sourceLift = (model: DotFieldModel): number => {
-      const sourceDots = model.dots.filter((dot) => Math.hypot(dot.baseX, dot.baseY * 1.18) / model.options.radius < 0.24);
-
-      return Math.max(...sourceDots.map((dot) => dot.lift));
-    };
 
     between.ripples = [ripple];
-    restarting.ripples = [ripple];
+    lateTail.ripples = [ripple];
     between.update(makeFrame({ timestamp: 1180, rms: 0.12, smoothedRms: 0.12, transient: 0, lowBand: 0.12, midBand: 0.18, highBand: 0.08 }, {
       speakingIntensity: 0,
       speechStart: false,
     }));
-    restarting.update(makeFrame({ timestamp: 1340, rms: 0.12, smoothedRms: 0.12, transient: 0, lowBand: 0.12, midBand: 0.18, highBand: 0.08 }, {
+    lateTail.update(makeFrame({ timestamp: 1340, rms: 0.12, smoothedRms: 0.12, transient: 0, lowBand: 0.12, midBand: 0.18, highBand: 0.08 }, {
       speakingIntensity: 0,
       speechStart: false,
     }));
 
     const betweenMax = Math.max(...between.dots.map((dot) => dot.lift));
-    const restartingMax = Math.max(...restarting.dots.map((dot) => dot.lift));
+    const lateTailMax = Math.max(...lateTail.dots.map((dot) => dot.lift));
 
     expect(betweenMax).toBeGreaterThan(0.045);
-    expect(sourceLift(restarting)).toBeGreaterThan(0.012);
-    expect(restartingMax).toBeGreaterThan(betweenMax * 0.7);
+    expect(lateTailMax).toBeGreaterThan(betweenMax * 0.52);
   });
 
   test('places frequency-reactive DOT origins around the plane center', () => {

@@ -7,7 +7,7 @@ import { JoyFieldModel } from './JoyFieldModel';
 import { topographyRidgeHeight as computeTopographyRidgeHeight } from './TopographyRenderMath';
 import { VisualCamera, type VisualCameraMotionMode } from './VisualCamera';
 import { visualHeightDisplacement, visualViewportScale } from './VisualGeometry';
-import { overlapDelayRange, rippleHeightRange, rippleSpeedRange, sensitivityRange, tailDampingRange } from './visualControlDefaults';
+import { cameraZoomRange, rippleHeightRange, rippleSpeedRange, sensitivityRange, tailDampingRange } from './visualControlDefaults';
 import { visualTokens } from './visualTokens';
 
 export type ListeningCoreFrame = {
@@ -51,7 +51,6 @@ export class ListeningCoreRenderer {
   private pinchDistance: number | null = null;
   private readonly touchPoints = new Map<number, { x: number; y: number }>();
   private rippleSpeed: number = rippleSpeedRange.default;
-  private overlapDelayMs: number = overlapDelayRange.default;
   private tailDamping: number = tailDampingRange.default;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
@@ -63,7 +62,7 @@ export class ListeningCoreRenderer {
 
     this.context2d = context2d;
     this.canvas.dataset.mode = this.mode;
-    this.dotModel.setFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
+    this.dotModel.setFlowControls(this.rippleSpeed, this.tailDamping);
     this.bindCameraControls();
     this.resize();
   }
@@ -88,15 +87,18 @@ export class ListeningCoreRenderer {
     this.joyModel.setTopographyHeightScale(this.rippleHeightScale);
   }
 
-  setDotFlowControls(speed: number, overlapDelayMs: number, tailDamping: number): void {
+  setDotFlowControls(speed: number, tailDamping: number): void {
     this.rippleSpeed = Math.min(rippleSpeedRange.max, Math.max(rippleSpeedRange.min, speed));
-    this.overlapDelayMs = Math.min(overlapDelayRange.max, Math.max(overlapDelayRange.min, overlapDelayMs));
     this.tailDamping = Math.min(tailDampingRange.max, Math.max(tailDampingRange.min, tailDamping));
-    this.dotModel.setFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
+    this.dotModel.setFlowControls(this.rippleSpeed, this.tailDamping);
   }
 
   setCameraMotionMode(mode: VisualCameraMotionMode): void {
     this.camera.setMotionMode(mode);
+  }
+
+  setCameraZoom(zoom: number): void {
+    this.camera.setZoom(Math.min(cameraZoomRange.max, Math.max(cameraZoomRange.min, zoom)));
   }
 
   render(frame: ListeningCoreFrame): void {

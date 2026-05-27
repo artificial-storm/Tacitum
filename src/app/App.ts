@@ -10,7 +10,7 @@ import { ListeningCoreRenderer, type VisualMode } from '../visual/ListeningCoreR
 import { applyVisualSensitivity } from '../visual/AudioSensitivity';
 import type { VisualCameraMotionMode } from '../visual/VisualCamera';
 import {
-  overlapDelayRange,
+  cameraZoomRange,
   rippleHeightRange,
   rippleSpeedRange,
   sensitivityRange,
@@ -25,6 +25,7 @@ type PersistedControls = {
   rippleSpeed: number;
   motionMode: VisualCameraMotionMode;
   audioSource: AudioInputSource;
+  cameraZoom: number;
 };
 
 const controlsStorageKey = 'tacitum.controls.v1';
@@ -45,6 +46,7 @@ export class App {
   private rippleSpeed: number = rippleSpeedRange.default;
   private motionMode: VisualCameraMotionMode = 'fixed';
   private audioSource: AudioInputSource = 'microphone';
+  private cameraZoom: number = cameraZoomRange.default;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -90,6 +92,11 @@ export class App {
               <input id="ripple-speed-control" type="range" min="${rippleSpeedRange.min}" max="${rippleSpeedRange.max}" step="${rippleSpeedRange.step}" value="${this.rippleSpeed}" />
               <output id="ripple-speed-value" for="ripple-speed-control">${this.rippleSpeed.toFixed(2)}x</output>
             </label>
+            <label class="range-control" for="camera-zoom-control">
+              <span>Zoom</span>
+              <input id="camera-zoom-control" type="range" min="${cameraZoomRange.min}" max="${cameraZoomRange.max}" step="${cameraZoomRange.step}" value="${this.cameraZoom}" />
+              <output id="camera-zoom-value" for="camera-zoom-control">${this.cameraZoom.toFixed(2)}x</output>
+            </label>
             <div class="mode-control source-control" aria-label="Audio source">
               <button class="visual-toggle source-toggle" id="source-toggle" type="button" aria-label="Toggle audio source" aria-pressed="${this.audioSource === 'tabAudio'}" data-current-source="${this.audioSource}">
                 <span class="toggle-option${this.audioSource === 'microphone' ? ' is-active' : ''}" data-audio-source="microphone">Mic</span>
@@ -105,8 +112,9 @@ export class App {
     const canvas = this.requiredElement<HTMLCanvasElement>('.core-canvas');
     this.renderer = new ListeningCoreRenderer(canvas);
     this.renderer.setSensitivity(this.sensitivity);
-    this.renderer.setDotFlowControls(this.rippleSpeed, overlapDelayRange.default, tailDampingRange.default);
+    this.renderer.setDotFlowControls(this.rippleSpeed, tailDampingRange.default);
     this.renderer.setCameraMotionMode(this.motionMode);
+    this.renderer.setCameraZoom(this.cameraZoom);
     this.syncLiftControl();
     this.syncAdvancedControls();
     this.bindControls();
@@ -175,8 +183,15 @@ export class App {
 
     this.requiredElement<HTMLInputElement>('#ripple-speed-control').addEventListener('input', (event) => {
       this.rippleSpeed = Number((event.currentTarget as HTMLInputElement).value);
-      this.renderer?.setDotFlowControls(this.rippleSpeed, overlapDelayRange.default, tailDampingRange.default);
+      this.renderer?.setDotFlowControls(this.rippleSpeed, tailDampingRange.default);
       this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
+      this.persistControls();
+    });
+
+    this.requiredElement<HTMLInputElement>('#camera-zoom-control').addEventListener('input', (event) => {
+      this.cameraZoom = Number((event.currentTarget as HTMLInputElement).value);
+      this.renderer?.setCameraZoom(this.cameraZoom);
+      this.requiredElement<HTMLOutputElement>('#camera-zoom-value').value = `${this.cameraZoom.toFixed(2)}x`;
       this.persistControls();
     });
 
@@ -286,6 +301,7 @@ export class App {
     this.updateMotionToggle();
     this.updateAudioSourceToggle();
     this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
+    this.requiredElement<HTMLOutputElement>('#camera-zoom-value').value = `${this.cameraZoom.toFixed(2)}x`;
   }
 
   private updateAudioSourceToggle(): void {
@@ -327,6 +343,9 @@ export class App {
         : this.rippleSpeed;
       this.motionMode = state.motionMode === 'auto' ? 'auto' : 'fixed';
       this.audioSource = state.audioSource === 'tabAudio' ? 'tabAudio' : 'microphone';
+      this.cameraZoom = typeof state.cameraZoom === 'number'
+        ? Math.min(cameraZoomRange.max, Math.max(cameraZoomRange.min, state.cameraZoom))
+        : this.cameraZoom;
 
       if (state.liftByMode?.depthPlane !== undefined) {
         this.liftByMode.depthPlane = Math.min(rippleHeightRange.max, Math.max(rippleHeightRange.min, state.liftByMode.depthPlane));
@@ -354,6 +373,7 @@ export class App {
       rippleSpeed: this.rippleSpeed,
       motionMode: this.motionMode,
       audioSource: this.audioSource,
+      cameraZoom: this.cameraZoom,
     };
 
     window.localStorage.setItem(controlsStorageKey, JSON.stringify(state));

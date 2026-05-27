@@ -213,4 +213,17 @@ describe('VisualCamera', () => {
     expect(camera.getState().zoom).toBeLessThanOrEqual(1.18);
     expect(camera.getState().zoom).toBeGreaterThanOrEqual(0.84);
   });
+
+  test('sets absolute zoom for persisted control values', () => {
+    const camera = new VisualCamera();
+
+    camera.setZoom(1.12);
+    expect(camera.getState().zoom).toBeCloseTo(1.12, 4);
+
+    camera.setZoom(2);
+    expect(camera.getState().zoom).toBe(1.18);
+
+    camera.setZoom(0.1);
+    expect(camera.getState().zoom).toBe(0.84);
+  });
 });

@@ -122,6 +122,10 @@ export class VisualCamera {
     this.applyZoom(delta);
   }
 
+  setZoom(zoom: number): void {
+    this.state.zoom = this.clamp(zoom, this.minZoom, this.maxZoom);
+  }
+
   getState(): VisualCameraState {
     return { ...this.state };
   }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  overlapDelayRange,
+  cameraZoomRange,
   rippleHeightRange,
   rippleSpeedRange,
   sensitivityRange,
@@ -26,8 +26,10 @@ describe('visual control defaults', () => {
     expect(rippleSpeedRange.default).toBe(0.7);
   });
 
-  test('uses a moderate DOT overlap delay by default', () => {
-    expect(overlapDelayRange.default).toBe(920);
+  test('keeps camera zoom neutral by default', () => {
+    expect(cameraZoomRange.default).toBe(1);
+    expect(cameraZoomRange.min).toBeLessThan(cameraZoomRange.default);
+    expect(cameraZoomRange.max).toBeGreaterThan(cameraZoomRange.default);
   });
 
   test('keeps tail damping neutral by default', () => {
