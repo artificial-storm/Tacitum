@@ -8,15 +8,6 @@ export type VisualCameraState = {
 
 export type VisualCameraMotionMode = 'fixed' | 'auto';
 
-export type VisualCameraMotionInput = {
-  energy: number;
-  transient: number;
-  brightness: number;
-  lowBand: number;
-  midBand: number;
-  highBand: number;
-};
-
 export type VisualCameraPoint = {
   x: number;
   y: number;
@@ -47,15 +38,6 @@ type AutoMotionLayer = {
   yawAmplitude: number;
   pitchAmplitude: number;
   zoomAmplitude: number;
-};
-
-const defaultMotionInput: VisualCameraMotionInput = {
-  energy: 0,
-  transient: 0,
-  brightness: 0,
-  lowBand: 0,
-  midBand: 0,
-  highBand: 0,
 };
 
 export class VisualCamera {
@@ -144,7 +126,7 @@ export class VisualCamera {
     return { ...this.state };
   }
 
-  update(timestamp: number, _motionInput: VisualCameraMotionInput = defaultMotionInput): void {
+  update(timestamp: number): void {
     const elapsed = this.lastUpdateTimestamp === null ? 16.67 : timestamp - this.lastUpdateTimestamp;
     const frameScale = this.clamp(elapsed / 16.67, 0.25, 3);
 

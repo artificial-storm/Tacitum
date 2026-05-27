@@ -111,14 +111,7 @@ export class ListeningCoreRenderer {
 
     this.context2d.save();
     this.drawBackground();
-    this.camera.update(adjustedFrame.audio.timestamp, {
-      energy: adjustedFrame.audio.smoothedRms,
-      transient: adjustedFrame.audio.transient,
-      brightness: adjustedFrame.audio.brightness,
-      lowBand: adjustedFrame.audio.lowBand,
-      midBand: adjustedFrame.audio.midBand,
-      highBand: adjustedFrame.audio.highBand,
-    });
+    this.camera.update(adjustedFrame.audio.timestamp);
     const cameraState = this.camera.getState();
 
     this.context2d.translate(

@@ -125,11 +125,10 @@ button {
 }
 
 .panel-toggle {
-  width: 24px;
-  min-height: 24px;
+  width: 26px;
+  min-height: 26px;
   display: inline-grid;
   place-items: center;
-  gap: 2px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
@@ -137,16 +136,24 @@ button {
   color: var(--text);
 }
 
-.panel-toggle span {
-  width: 10px;
-  height: 1px;
-  background: currentColor;
-  display: block;
+.panel-toggle-icon {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 160ms ease;
 }
 
 .panel-toggle[aria-expanded='true'] {
   background: rgba(247, 244, 236, 0.88);
   color: #050505;
+}
+
+.panel-toggle[aria-expanded='true'] .panel-toggle-icon {
+  transform: rotate(35deg);
 }
 
 .visual-toggle {

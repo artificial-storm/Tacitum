@@ -23,8 +23,6 @@ type PersistedControls = {
   sensitivity: number;
   liftByMode: Record<VisualMode, number>;
   rippleSpeed: number;
-  overlapDelayMs: number;
-  tailDamping: number;
   motionMode: VisualCameraMotionMode;
 };
 
@@ -44,8 +42,6 @@ export class App {
   private readonly liftByMode: Record<VisualMode, number> = { ...visualModeLiftDefaults };
   private panelOpen = false;
   private rippleSpeed: number = rippleSpeedRange.default;
-  private overlapDelayMs: number = overlapDelayRange.default;
-  private tailDamping: number = tailDampingRange.default;
   private motionMode: VisualCameraMotionMode = 'fixed';
 
   constructor(private readonly root: HTMLElement) {}
@@ -72,9 +68,9 @@ export class App {
               </button>
             </div>
             <button class="panel-toggle" id="panel-toggle" type="button" aria-label="Toggle control panel" aria-expanded="${this.panelOpen}">
-              <span></span>
-              <span></span>
-              <span></span>
+              <svg class="panel-toggle-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M21.2 13.3v-2.6l-2-.4a7.8 7.8 0 0 0-.5-1.2l1.2-1.7-1.8-1.8-1.7 1.2a7.8 7.8 0 0 0-1.2-.5l-.4-2h-2.6l-.4 2a7.8 7.8 0 0 0-1.2.5L7 5.6 5.2 7.4l1.2 1.7a7.8 7.8 0 0 0-.5 1.2l-2 .4v2.6l2 .4a7.8 7.8 0 0 0 .5 1.2l-1.2 1.7L7 18.4l1.7-1.2a7.8 7.8 0 0 0 1.2.5l.4 2h2.6l.4-2a7.8 7.8 0 0 0 1.2-.5l1.7 1.2 1.8-1.8-1.2-1.7a7.8 7.8 0 0 0 .5-1.2l2-.4ZM12 15.1A3.1 3.1 0 1 1 12 9a3.1 3.1 0 0 1 0 6.2Z" />
+              </svg>
             </button>
           </div>
           <div class="advanced-menu${this.panelOpen ? ' is-open' : ''}" id="advanced-menu" aria-hidden="${!this.panelOpen}">
@@ -92,16 +88,6 @@ export class App {
               <input id="ripple-speed-control" type="range" min="${rippleSpeedRange.min}" max="${rippleSpeedRange.max}" step="${rippleSpeedRange.step}" value="${this.rippleSpeed}" />
               <output id="ripple-speed-value" for="ripple-speed-control">${this.rippleSpeed.toFixed(2)}x</output>
             </label>
-            <label class="range-control" for="overlap-delay-control">
-              <span>Overlap</span>
-              <input id="overlap-delay-control" type="range" min="${overlapDelayRange.min}" max="${overlapDelayRange.max}" step="${overlapDelayRange.step}" value="${this.overlapDelayMs}" />
-              <output id="overlap-delay-value" for="overlap-delay-control">${Math.round(this.overlapDelayMs)}ms</output>
-            </label>
-            <label class="range-control" for="tail-damping-control">
-              <span>Tail</span>
-              <input id="tail-damping-control" type="range" min="${tailDampingRange.min}" max="${tailDampingRange.max}" step="${tailDampingRange.step}" value="${this.tailDamping}" />
-              <output id="tail-damping-value" for="tail-damping-control">${this.tailDamping.toFixed(2)}</output>
-            </label>
           </div>
           <div class="error-text" id="error-text" role="status"></div>
         </section>
@@ -111,7 +97,7 @@ export class App {
     const canvas = this.requiredElement<HTMLCanvasElement>('.core-canvas');
     this.renderer = new ListeningCoreRenderer(canvas);
     this.renderer.setSensitivity(this.sensitivity);
-    this.renderer.setDotFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
+    this.renderer.setDotFlowControls(this.rippleSpeed, overlapDelayRange.default, tailDampingRange.default);
     this.renderer.setCameraMotionMode(this.motionMode);
     this.syncLiftControl();
     this.syncAdvancedControls();
@@ -181,22 +167,8 @@ export class App {
 
     this.requiredElement<HTMLInputElement>('#ripple-speed-control').addEventListener('input', (event) => {
       this.rippleSpeed = Number((event.currentTarget as HTMLInputElement).value);
-      this.renderer?.setDotFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
+      this.renderer?.setDotFlowControls(this.rippleSpeed, overlapDelayRange.default, tailDampingRange.default);
       this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
-      this.persistControls();
-    });
-
-    this.requiredElement<HTMLInputElement>('#overlap-delay-control').addEventListener('input', (event) => {
-      this.overlapDelayMs = Number((event.currentTarget as HTMLInputElement).value);
-      this.renderer?.setDotFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
-      this.requiredElement<HTMLOutputElement>('#overlap-delay-value').value = `${Math.round(this.overlapDelayMs)}ms`;
-      this.persistControls();
-    });
-
-    this.requiredElement<HTMLInputElement>('#tail-damping-control').addEventListener('input', (event) => {
-      this.tailDamping = Number((event.currentTarget as HTMLInputElement).value);
-      this.renderer?.setDotFlowControls(this.rippleSpeed, this.overlapDelayMs, this.tailDamping);
-      this.requiredElement<HTMLOutputElement>('#tail-damping-value').value = this.tailDamping.toFixed(2);
       this.persistControls();
     });
   }
@@ -271,8 +243,6 @@ export class App {
     panelToggle.setAttribute('aria-expanded', String(this.panelOpen));
     this.updateMotionToggle();
     this.requiredElement<HTMLOutputElement>('#ripple-speed-value').value = `${this.rippleSpeed.toFixed(2)}x`;
-    this.requiredElement<HTMLOutputElement>('#overlap-delay-value').value = `${Math.round(this.overlapDelayMs)}ms`;
-    this.requiredElement<HTMLOutputElement>('#tail-damping-value').value = this.tailDamping.toFixed(2);
   }
 
   private updateMotionToggle(): void {
@@ -302,12 +272,6 @@ export class App {
       this.rippleSpeed = typeof state.rippleSpeed === 'number'
         ? Math.min(rippleSpeedRange.max, Math.max(rippleSpeedRange.min, state.rippleSpeed))
         : this.rippleSpeed;
-      this.overlapDelayMs = typeof state.overlapDelayMs === 'number'
-        ? Math.min(overlapDelayRange.max, Math.max(overlapDelayRange.min, state.overlapDelayMs))
-        : this.overlapDelayMs;
-      this.tailDamping = typeof state.tailDamping === 'number'
-        ? Math.min(tailDampingRange.max, Math.max(tailDampingRange.min, state.tailDamping))
-        : this.tailDamping;
       this.motionMode = state.motionMode === 'auto' ? 'auto' : 'fixed';
 
       if (state.liftByMode?.depthPlane !== undefined) {
@@ -334,8 +298,6 @@ export class App {
       sensitivity: this.sensitivity,
       liftByMode: { ...this.liftByMode },
       rippleSpeed: this.rippleSpeed,
-      overlapDelayMs: this.overlapDelayMs,
-      tailDamping: this.tailDamping,
       motionMode: this.motionMode,
     };
 

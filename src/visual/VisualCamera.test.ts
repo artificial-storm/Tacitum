@@ -163,9 +163,9 @@ describe('VisualCamera', () => {
     const camera = new VisualCamera(randomSequence([0.91, 0.18, 0.74, 0.22, 0.67, 0.35, 0.58, 0.14]));
 
     camera.setMotionMode('auto');
-    camera.update(1000, { energy: 0.08, transient: 0.02, brightness: 0.2, lowBand: 0.08, midBand: 0.1, highBand: 0.12 });
-    camera.update(1500, { energy: 0.08, transient: 0.02, brightness: 0.2, lowBand: 0.08, midBand: 0.1, highBand: 0.12 });
-    camera.update(2100, { energy: 0.08, transient: 0.02, brightness: 0.2, lowBand: 0.08, midBand: 0.1, highBand: 0.12 });
+    camera.update(1000);
+    camera.update(1500);
+    camera.update(2100);
 
     const state = camera.getState();
 
@@ -207,7 +207,7 @@ describe('VisualCamera', () => {
     camera.setMotionMode('auto');
 
     for (let index = 0; index < 12; index += 1) {
-      camera.update(1200 + index * 320, { energy: 0.92, transient: 0.94, brightness: 0.7, lowBand: 0.76, midBand: 0.8, highBand: 0.62 });
+      camera.update(1200 + index * 320);
     }
 
     expect(camera.getState().zoom).toBeLessThanOrEqual(1.18);
